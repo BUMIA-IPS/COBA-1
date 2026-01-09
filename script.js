@@ -1,9 +1,10 @@
+// GANTI SHEET_ID dengan ID punyamu jika berbeda
 const SHEET_ID = "1hpWKGV0q74t77vxGrHAujag-i2OTquEi_0U4eOcsPKM";
 const URL_DATA = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
 
 let questions = [];
-let pPos = [1, 1, 1, 1];
-let pQIdx = [0, 0, 0, 0];
+let pPos = [1, 1, 1, 1]; 
+let pQIdx = [0, 0, 0, 0]; 
 let isGameActive = false;
 
 async function initGame() {
@@ -11,66 +12,90 @@ async function initGame() {
         const res = await fetch(URL_DATA);
         const txt = await res.text();
         const json = JSON.parse(txt.substr(47).slice(0, -2));
-        questions = json.table.rows.map(r => ({
-            q: r.c[0] ? r.c[0].v : "Soal...",
-            a: r.c[1] ? r.c[1].v : "-",
-            b: r.c[2] ? r.c[2].v : "-",
-            c: r.c[3] ? r.c[3].v : "-",
-            k: r.c[4] ? r.c[4].v.toString().toUpperCase().trim() : "A"
-        }));
         
-        isGameActive = true;
-        document.getElementById('start-btn').style.display = 'none';
-        for(let i=1; i<=4; i++) renderQ(i);
+        questions = json.table.rows.map(r => ({
+            q: r.c[0] ? String(r.c[0].v) : "Soal Kosong",
+            a: r.c[1] ? String(r.c[1].v) : "-",
+            b: r.c[2] ? String(r.c[2].v) : "-",
+            c: r.c[3] ? String(r.c[3].v) : "-",
+            // Membersihkan kunci jawaban agar hanya terbaca A, B, atau C
+            k: r.c[4] ? String(r.c[4].v).toUpperCase().replace(/[^ABC]/g, '') : "" 
+        }));
+
+        if (questions.length > 0) {
+            isGameActive = true;
+            document.getElementById('start-btn').style.display = 'none';
+            for(let i=1; i<=4; i++) renderQ(i);
+        } else {
+            alert("Data di Google Sheet kosong!");
+        }
     } catch(e) {
-        alert("Gagal memuat data! Pastikan Google Sheet sudah di-Publish to Web.");
+        document.querySelectorAll('.q-box').forEach(el => el.innerText = "Error: Cek Publish to Web Sheet!");
+        console.error(e);
     }
 }
 
-function renderQ(p) {
+function renderQ(pNum) {
     if (!isGameActive) return;
-    if (pQIdx[p-1] >= questions.length) pQIdx[p-1] = 0;
-    const data = questions[pQIdx[p-1]];
+    const data = questions[pQIdx[pNum-1]];
     
-    document.getElementById(`q${p}`).innerText = data.q;
-    const optArea = document.getElementById(`opt${p}`);
-    optArea.innerHTML = '';
+    const qEl = document.getElementById(`q${pNum}`);
+    const optArea = document.getElementById(`opt${pNum}`);
+    
+    if(!qEl || !optArea) return;
+
+    qEl.innerText = data.q;
+    optArea.innerHTML = ''; 
     
     ['A', 'B', 'C'].forEach(label => {
         const btn = document.createElement('button');
         btn.className = 'opt-btn';
         btn.innerText = `${label}. ${data[label.toLowerCase()]}`;
-        btn.onclick = () => checkAns(p, label);
+        // PENTING: Gunakan closure untuk mengunci nomor pemain
+        btn.onclick = (function(p, l) {
+            return function() { checkAns(p, l); };
+        })(pNum, label);
         optArea.appendChild(btn);
     });
 }
 
-function playSound(id) {
-    const s = document.getElementById(id);
-    if(s) { s.currentTime = 0; s.play().catch(()=>{}); }
-}
-
-function checkAns(p, choice) {
+function checkAns(pNum, choice) {
     if(!isGameActive) return;
-    const correct = questions[pQIdx[p-1]].k;
 
-    if (choice === correct) {
-        playSound('snd-ok');
-        pPos[p-1] += 8; // Maju 8%
-        document.getElementById(`d${p}`).style.left = pPos[p-1] + "%";
+    const data = questions[pQIdx[pNum-1]];
+    const correctKey = data.k;
+    const duck = document.getElementById(`d${pNum}`);
+
+    // LOGIKA PERGERAKAN PASTI JALAN
+    if (choice === correctKey) {
+        // Efek Suara Benar
+        const sOk = document.getElementById('snd-ok');
+        sOk.currentTime = 0;
+        sOk.play().catch(()=>{});
         
-        if (pPos[p-1] >= 85) {
+        // MAJU 8%
+        pPos[pNum-1] += 8; 
+        duck.style.left = pPos[pNum-1] + "%";
+        
+        if (pPos[pNum-1] >= 85) {
             isGameActive = false;
-            const winBox = document.getElementById('win-notif');
-            winBox.innerText = `BEBEK ${p} MENANG! 🏆`;
-            winBox.style.display = 'block';
+            const notif = document.getElementById('win-notif');
+            notif.innerText = `BEBEK ${pNum} MENANG! 🏆`;
+            notif.style.display = 'block';
+            return;
         }
     } else {
-        playSound('snd-no');
-        pPos[p-1] = Math.max(1, pPos[p-1] - 3); // Mundur 3%
-        document.getElementById(`d${p}`).style.left = pPos[p-1] + "%";
+        // Efek Suara Salah
+        const sNo = document.getElementById('snd-no');
+        sNo.currentTime = 0;
+        sNo.play().catch(()=>{});
+        
+        // MUNDUR 3%
+        pPos[pNum-1] = Math.max(1, pPos[pNum-1] - 3);
+        duck.style.left = pPos[pNum-1] + "%";
     }
-    
-    pQIdx[p-1]++;
-    renderQ(p);
+
+    // Ganti Soal
+    pQIdx[pNum-1] = (pQIdx[pNum-1] + 1) % questions.length;
+    renderQ(pNum);
 }
