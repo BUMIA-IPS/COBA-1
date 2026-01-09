@@ -1,101 +1,88 @@
-// GANTI SHEET_ID dengan ID punyamu jika berbeda
-const SHEET_ID = "1hpWKGV0q74t77vxGrHAujag-i2OTquEi_0U4eOcsPKM";
-const URL_DATA = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:json`;
+// Menggunakan var untuk menghindari error "already declared"
+var MY_SHEET_ID = "1hpWKGV0q74t77vxGrHAujag-i2OTquEi_0U4eOcsPKM";
+var MY_URL_DATA = "https://docs.google.com/spreadsheets/d/" + MY_SHEET_ID + "/gviz/tq?tqx=out:json";
 
-let questions = [];
-let pPos = [1, 1, 1, 1]; 
-let pQIdx = [0, 0, 0, 0]; 
-let isGameActive = false;
+var gameQuestions = [];
+var gamePos = [1, 1, 1, 1]; 
+var gameQIdx = [0, 0, 0, 0]; 
+var raceActive = false;
 
 async function initGame() {
+    console.log("Memulai proses loading...");
     try {
-        const res = await fetch(URL_DATA);
-        const txt = await res.text();
-        const json = JSON.parse(txt.substr(47).slice(0, -2));
+        const response = await fetch(MY_URL_DATA);
+        const rawText = await response.text();
+        const jsonData = JSON.parse(rawText.substr(47).slice(0, -2));
         
-        questions = json.table.rows.map(r => ({
+        gameQuestions = jsonData.table.rows.map(r => ({
             q: r.c[0] ? String(r.c[0].v) : "Soal Kosong",
             a: r.c[1] ? String(r.c[1].v) : "-",
             b: r.c[2] ? String(r.c[2].v) : "-",
             c: r.c[3] ? String(r.c[3].v) : "-",
-            // Membersihkan kunci jawaban agar hanya terbaca A, B, atau C
-            k: r.c[4] ? String(r.c[4].v).toUpperCase().replace(/[^ABC]/g, '') : "" 
+            k: r.c[4] ? String(r.c[4].v).toUpperCase().trim() : "" 
         }));
 
-        if (questions.length > 0) {
-            isGameActive = true;
+        if (gameQuestions.length > 0) {
+            raceActive = true;
             document.getElementById('start-btn').style.display = 'none';
-            for(let i=1; i<=4; i++) renderQ(i);
-        } else {
-            alert("Data di Google Sheet kosong!");
+            for(let i=1; i<=4; i++) renderQuestion(i);
+            console.log("Data siap! Balapan dimulai.");
         }
-    } catch(e) {
-        document.querySelectorAll('.q-box').forEach(el => el.innerText = "Error: Cek Publish to Web Sheet!");
-        console.error(e);
+    } catch(err) {
+        console.error("Gagal memuat data:", err);
+        alert("Koneksi gagal! Pastikan Google Sheet sudah 'Publish to Web'.");
     }
 }
 
-function renderQ(pNum) {
-    if (!isGameActive) return;
-    const data = questions[pQIdx[pNum-1]];
-    
-    const qEl = document.getElementById(`q${pNum}`);
-    const optArea = document.getElementById(`opt${pNum}`);
-    
-    if(!qEl || !optArea) return;
+function renderQuestion(pNum) {
+    const data = gameQuestions[gameQIdx[pNum-1]];
+    if (!data) return;
 
-    qEl.innerText = data.q;
+    document.getElementById("q" + pNum).innerText = data.q;
+    const optArea = document.getElementById("opt" + pNum);
     optArea.innerHTML = ''; 
     
     ['A', 'B', 'C'].forEach(label => {
         const btn = document.createElement('button');
         btn.className = 'opt-btn';
-        btn.innerText = `${label}. ${data[label.toLowerCase()]}`;
-        // PENTING: Gunakan closure untuk mengunci nomor pemain
-        btn.onclick = (function(p, l) {
-            return function() { checkAns(p, l); };
-        })(pNum, label);
+        btn.innerText = label + ". " + data[label.toLowerCase()];
+        btn.onclick = function() { checkRaceAnswer(pNum, label); };
         optArea.appendChild(btn);
     });
 }
 
-function checkAns(pNum, choice) {
-    if(!isGameActive) return;
+function checkRaceAnswer(pNum, choice) {
+    if(!raceActive) return;
+    
+    const correctAns = gameQuestions[gameQIdx[pNum-1]].k;
+    const duckImg = document.getElementById("d" + pNum);
 
-    const data = questions[pQIdx[pNum-1]];
-    const correctKey = data.k;
-    const duck = document.getElementById(`d${pNum}`);
-
-    // LOGIKA PERGERAKAN PASTI JALAN
-    if (choice === correctKey) {
-        // Efek Suara Benar
+    if (choice === correctAns) {
+        // Suara Quack
         const sOk = document.getElementById('snd-ok');
-        sOk.currentTime = 0;
-        sOk.play().catch(()=>{});
+        if(sOk) { sOk.currentTime = 0; sOk.play().catch(()=>{}); }
         
-        // MAJU 8%
-        pPos[pNum-1] += 8; 
-        duck.style.left = pPos[pNum-1] + "%";
+        // Maju 8%
+        gamePos[pNum-1] += 8; 
+        duckImg.style.left = gamePos[pNum-1] + "%";
         
-        if (pPos[pNum-1] >= 85) {
-            isGameActive = false;
-            const notif = document.getElementById('win-notif');
-            notif.innerText = `BEBEK ${pNum} MENANG! 🏆`;
-            notif.style.display = 'block';
-            return;
+        if (gamePos[pNum-1] >= 85) {
+            raceActive = false;
+            const winText = document.getElementById('win-notif');
+            winText.innerText = "BEBEK " + pNum + " MENANG! 🏆";
+            winText.style.display = 'block';
         }
     } else {
-        // Efek Suara Salah
+        // Suara Salah
         const sNo = document.getElementById('snd-no');
-        sNo.currentTime = 0;
-        sNo.play().catch(()=>{});
+        if(sNo) { sNo.currentTime = 0; sNo.play().catch(()=>{}); }
         
-        // MUNDUR 3%
-        pPos[pNum-1] = Math.max(1, pPos[pNum-1] - 3);
-        duck.style.left = pPos[pNum-1] + "%";
+        // Mundur 3%
+        gamePos[pNum-1] = Math.max(1, gamePos[pNum-1] - 3);
+        duckImg.style.left = gamePos[pNum-1] + "%";
     }
 
-    // Ganti Soal
-    pQIdx[pNum-1] = (pQIdx[pNum-1] + 1) % questions.length;
-    renderQ(pNum);
+    // Lanjut ke soal berikutnya (looping)
+    gameQIdx[pNum-1] = (gameQIdx[pNum-1] + 1) % gameQuestions.length;
+    renderQuestion(pNum);
 }
