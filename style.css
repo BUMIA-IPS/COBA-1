@@ -1,0 +1,24 @@
+body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Arial Black', sans-serif; }
+#game-container { display: flex; flex-direction: column; height: 100vh; }
+#pool-area { flex: 70; position: relative; overflow: hidden; }
+.bg-track { width: 100%; height: 100%; object-fit: fill; position: absolute; }
+
+.duck { 
+    position: absolute; 
+    height: 30%; 
+    transform: scaleX(-1); 
+    transition: left 0.4s ease-out; 
+    z-index: 10;
+}
+
+#player-controls { flex: 30; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; padding: 10px; background: #01579b; border-top: 5px solid #ffeb3b; }
+.p-box { background: #e3f2fd; border-radius: 12px; padding: 8px; display: flex; flex-direction: column; }
+.p-tag { text-align: center; font-weight: bold; font-size: 14px; margin-bottom: 5px; }
+.q-box { background: white; flex-grow: 1; margin-bottom: 8px; border-radius: 6px; font-size: 12px; text-align: center; padding: 5px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
+
+.options { display: flex; flex-direction: column; gap: 5px; }
+.opt-btn { padding: 8px; font-size: 11px; cursor: pointer; border: none; border-radius: 5px; background: #ffeb3b; font-weight: bold; box-shadow: 0 3px 0 #fbc02d; }
+.opt-btn:active { transform: translateY(2px); box-shadow: none; }
+
+#win-notif { display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #ffeb3b; padding: 30px; border-radius: 20px; font-size: 30px; z-index: 100; border: 5px solid white; text-align: center; }
+#start-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); padding: 20px 50px; border-radius: 50px; background: #4caf50; color: white; font-size: 24px; cursor: pointer; z-index: 101; font-weight: bold; border: 4px solid white; }
